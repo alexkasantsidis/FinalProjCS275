@@ -1,0 +1,13 @@
+{
+  "name": "final-proj",
+  "version": "0.0.0",
+  "description": "FinalProj",
+  "main": "app.js",
+  "author": {
+    "name": "alexkas"
+  },
+  "dependencies": {
+    "client-sessions": "^0.8.0",
+    "path": "^0.12.7"
+  }
+}

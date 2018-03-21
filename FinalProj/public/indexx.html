@@ -1,0 +1,262 @@
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!--JQuery Mobile and JQuery imports-->
+    <link rel="stylesheet" href="http://code.jquery.com/mobile/1.3.1/jquery.mobile-1.3.1.min.css" />
+    <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
+    <script>
+        $(document).bind("mobileinit", function () {
+            $.extend($.mobile, {
+                pageLoadErrorMessage: ""
+            });
+        });
+    </script>
+    <script src="http://code.jquery.com/mobile/1.3.1/jquery.mobile-1.3.1.min.js"></script>
+
+    <!--Custom Font-->
+    <link href="https://fonts.googleapis.com/css?family=Armata" rel="stylesheet">
+
+    <!-- Main CSS file -->
+    <link rel="stylesheet" href="./css/main.css">
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <!-- Bootstrap CSS file (Used for the bootstrap grids)-->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+
+
+    <title>PlanIT</title>
+
+    <script src="./js/index.js"></script>
+    <script>
+        function requestVerification() {
+            var username = $('#username').val();
+            var password = $('#password').val();
+            var params = {
+                userName: username,
+                password: password
+            }
+            var url = './verify';
+            $.ajax({
+                type: "post",
+                url: url,
+                dataType: "text",
+                data: params,
+                success: function (msg) {
+                    //alert(msg);
+                    if (msg == '[]') alert('Invalid username or password');
+
+                    else {
+                        var json = JSON.parse(msg)
+                        json = json[0];
+                        alert('Hello ' + json.FirstName);
+                        //save this for later
+                        var userID = json.UserGUID;
+                        //TO:DO Add navigation
+                        goToMain(userID);
+                        $('#loginModal').hide();
+
+                    }
+                },
+                error: function (jgXHR, textStatus, errorThrown) {
+                    //alert('error');
+                    alert("Error: " + textStatus + " " + errorThrown);
+                }
+            });
+        }
+        function goToMain(userID) {
+            var param = {
+                userID: userID
+            }
+            var url = './login';
+            $.ajax({
+                type: "post",
+                url: url,
+                dataType: "html",
+                data: param,
+                success: function (msg) {
+                    document.documentElement.innerHTML = msg;
+                    $('#home').trigger('create');
+                },
+                error: function (jgXHR, textStatus, errorThrown) {
+                    //alert('error');
+                    alert("Error: " + textStatus + " " + errorThrown);
+                }
+            });
+        }
+
+        //modify verify
+        function verifyReg(username, firstname, lastname, password, cPassword, DOB) {
+            if (username == '' || firstname == '' || lastname == '' || password == '' || cPassword == '' || DOB == '') return false;
+            else {
+                if (password != cPassword) {
+                    //TO:DO change colors of input boxes if bad values
+                    alert('password dont match');
+                    document.getElementById('regPassword').style.borderColor = "red";
+                    return false;
+                }
+                else {
+                    document.getElementById('regConfirmPassword').style.borderColor = "green";
+                    return true;
+                }
+            }
+        }
+        function requestRegistration() {
+            var username = $('#regusername').val();
+            var firstname = $('#regFirstName').val();
+            var lastname = $('#regLastName').val();
+            var password = $('#regPassword').val();
+            var cPassword = $('#regConfirmPassword').val();
+            var DOB = $('#regDOB').val();
+            var flag = verifyReg(username, firstname, lastname, password, cPassword, DOB);
+            var params = {
+                username: username,
+                firstname: firstname,
+                lastname: lastname,
+                password: password,
+                DOB: DOB
+            }
+            if (flag) {
+                //alert('true');
+                var url = './register';
+                $.ajax({
+                    type: "post",
+                    url: url,
+                    dataType: "text",
+                    data: params,
+                    success: function (msg) {
+                        alert(msg + 'Login with your Username and Password');
+                        $('#registrationModal').hide();
+                    },
+                    error: function (jgXHR, textStatus, errorThrown) {
+                        //alert('error');
+                        alert("Error: " + textStatus + " " + errorThrown);
+                    }
+                });
+            }
+            else {
+                alert('Fix Values');
+            }
+        }
+        $(document).ready(function () {
+            $('#regDOB').datepicker();
+            $('#registerp').click(function () {
+                requestRegistration();
+            })
+            //$('#regConfirmPassword').on('change', function () {
+            //    var val = this.val();
+            //    if ($('#regPassword').val() != '') {
+            //        if()
+            //    }
+            //})
+        })
+    </script>
+</head>
+
+<body>
+    <div data-role="page" id="home" data-theme="d">
+        <div class="row">
+            <div class="col-lg-12">
+
+                <a class="registerAndLoginBtn" id="login" onclick="document.getElementById('loginModal').style.display='block'" data-role="button">Login</a>
+                <br>
+                <p id="registerDescr">Don't have an account?  Register Here!</p>
+                <a class="registerAndLoginBtn" onclick="document.getElementById('registrationModal').style.display='block'" data-role="button">Register</a>
+            </div>
+        </div>
+
+        <!-- Login -->
+        <div id="loginModal" class="modal">
+            <center>
+                <form class="modalContent animate" onsubmit="return false;" method="post" id="loginModal">
+                    <div>
+                        <span onclick="document.getElementById('loginModal').style.display='none'" class="closeModal" title="Close">&times;</span>
+                    </div>
+
+                    <div class="containerModal">
+                        <ul class="ErrorMessages" id="ErrorMessages"></ul>
+                        <h2> Login </h2>
+                        <hr>
+                        <div>
+                            <label for="username">Username: </label>
+                            <input type="text" id="username">
+                        </div>
+
+                        <div>
+                            <label for="password">Password: </label>
+                            <input type="password" id="password">
+                        </div>
+
+                        <br><br>
+                        <p></p>
+                        <button id="loginp" onclick="requestVerification()" class="registerAndLoginBtn" style="float: none">Login</button>
+                    </div>
+
+                </form>
+            </center>
+        </div>
+
+        <!-- Registration -->
+        <div id="registrationModal" class="Modal">
+            <center>
+                <form class="ModalContent animate" onsubmit="return false;" method="post" id="loginModal">
+                    <div>
+                        <span onclick="document.getElementById('registrationModal').style.display='none'" class="closeModal" title="Close">&times;</span>
+                    </div>
+                    <div class="containerModal">
+                        <ul class="ErrorMessages" id="ErrorMessages"></ul>
+                        <h2> Register </h2>
+                        <hr>
+                        <div>
+                            <label for="username">Username: </label>
+                            <input type="text" id="regusername">
+                        </div>
+                        <div>
+                            <label for="regFirstName">FirstName: </label>
+                            <input type="text" id="regFirstName">
+                        </div>
+                        <div>
+                            <label for="regLastName">LastName: </label>
+                            <input type="text" id="regLastName">
+                        </div>
+                        <div>
+                            <label for="regPassword">Password: </label>
+                            <input type="password" id="regPassword">
+                        </div>
+                        <div>
+                            <label for="regConfirmPassword">Confirm Password: </label>
+                            <input type="password" id="regConfirmPassword">
+                        </div>
+                        <div>
+                            <label for="regDOB">Birth Date: </label>
+                            <input type="text" id="regDOB">
+                        </div>
+                        <div>
+                            <label for="regemail">Email: </label>
+                            <input type="text" id="regemail">
+                            <br /><br />
+                        </div>
+
+
+                        <p id=""></p>
+                        <button class="registerAndLoginBtn" id="registerp" style="float: none">Register</button>
+                    </div>
+                </form>
+            </center>
+        </div>
+
+
+        <center>
+            <br><br>
+            <div class="Blank">
+                <img src="./images/Notebook.png" height="235px" width="90%">
+            </div>
+            <br>
+            <p>Welcome to PlanIT. The Homework Planning master.  Where you can create Homework planners which will bend to your schedule in collage</p>
+        </center>
+
+    </div>
+</body>
+
+
+</html>
