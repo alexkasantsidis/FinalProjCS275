@@ -2,11 +2,9 @@
 var http = require('http');
 var express = require('express');
 var app = express();
-var session = require('client-sessions');
 var sql = require('mssql');
 var sqlString = require('sqlstring');
 var database = require('./public/js/database');
-var db = new database.Database();
 var bodyParser = require('body-parser');
 var path = require('path');
 //need these commands to get parameters for the post
@@ -22,14 +20,7 @@ var DB = new DBRequest();
 var async = require('async');
 //------------------------------------
 app.use(express.static(path.join(__dirname, '/public/')));
-//app.use('/js', express.static(__dirname + '/js'));
-//app.use('/css', express.static(__dirname + '/css'));
-app.use(session({
-    cookieName: 'session',
-    secret: 'shouldbearandomstring',
-    duration: 30 * 60 * 1000,
-    activeDuration: 5 * 60 * 1000,
-}));
+
 var config = {
     userName: 'alexkas', // update me
     password: 'Alex0101', // update me
@@ -41,6 +32,7 @@ var config = {
 }
 
 var connection = new Connection(config);
+
 connection.on('connect', function (err) {
     // If no error, then good to proceed.
     console.log("Connected");
@@ -55,7 +47,7 @@ app.post('/insertEvent', function (req, res) {
     var EndDate = req.body.EndDate;
     var StartTime = req.body.StartTime;
     var EndTime = req.body.EndTime;
-    var query = sqlString.format('exec insertEvent @freqID = ?,@className = ?,@UserID = ?, @StartDate = ?,@Enddate = ?, @startTime = ?,@Endtime = ?', [freqID,className, UserID, StartDate, EndDate, StartTime, EndTime]);
+    var query = sqlString.format('exec insertEvent @freqID = ?,@className = ?,@UserID = ?, @StartDate = ?,@Enddate = ?, @startTime = ?,@Endtime = ?', [freqID, className, UserID, StartDate, EndDate, StartTime, EndTime]);
     DB.execInsertStatement(query, connection, res);
 })
 
@@ -68,13 +60,12 @@ app.post('/updateEvent', function (req, res) {
     var EndDate = req.body.EndDate;
     var StartTime = req.body.StartTime;
     var EndTime = req.body.EndTime;
-    var query = sqlString.format('exec updateEvent  @freqID = ?,@className = ?,@UserID = ?, @StartDate = ?,@Enddate = ?, @startTime = ?,@Endtime = ?, @ClassID = ?', [freqID, className,UserID, StartDate, EndDate, StartTime, EndTime,classID]);
+    var query = sqlString.format('exec updateEvent  @freqID = ?,@className = ?,@UserID = ?, @StartDate = ?,@Enddate = ?, @startTime = ?,@Endtime = ?, @ClassID = ?', [freqID, className, UserID, StartDate, EndDate, StartTime, EndTime, classID]);
     DB.execInsertStatement(query, connection, res);
 })
 
 app.get('/calendar', function (req, res) {
     var userID = req.query.userID;
-    //var userID = '53FEA2B7-618F-461B-99CF-B51BBC8F29D7'
     var query = sqlString.format('select  * from [vRepeatedSchedules] where UserGUID = cast(? as uniqueidentifier)', [userID]);
     DB.executeStatement(query, connection, res);
 });
@@ -95,57 +86,11 @@ app.post('/register', function (req, res) {
     DB.execInsertStatement(query, connection, res);
 });
 
-app.post('/login', function (req, res) {
-    var userID = req.body.userID;
-    var query = sqlString.format('select * from users where userGUID = ?', [userID]);
-    db.once('loggedin', function (msg) {
-        if (msg == 1) {
-            req.session.userid = userID;
-            return res.redirect('/getUsers');
-        }
-        else {
-            req.session.msg = "Invalid login";
-            return res.redirect('/');
-        }
-    });
-    db.login(query, connection, res);
-});
-
 app.get('/', function (req, res) {
     //changed file to test bc login doesnt work
     res.sendFile(__dirname + '/public/index.html');
 });
 
-app.get('/getUsers', function (req, res) {
-    if (!req.session.userid) {
-        req.session.msg = 'Not allowed there';
-        return res.redirect('/');
-    }
-    else {
-        //console.log('main request');
-        return res.redirect('/main');
-    }
-
-});
-
-app.get('/main', function (req, res) {
-    if (!req.session.userid) {
-        req.session.msg = 'Not allowed there';
-        return res.redirect('/');
-    }
-    else {
-        console.log('send file');
-        res.locals.userid = req.session.userid;
-        //console.log(res);
-        res.sendFile(path.join(__dirname, '/public/main.html'));
-    }
-});
-
-app.get('/logout', function (req, res) {
-    req.session.reset();
-    req.session.msg = 'Logged out';
-    return res.redirect('/');
-});
 
 app.listen(8080, function () {
     console.log('Server Running...');
