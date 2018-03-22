@@ -4,7 +4,6 @@ var express = require('express');
 var app = express();
 var sql = require('mssql');
 var sqlString = require('sqlstring');
-var database = require('./public/js/database');
 var bodyParser = require('body-parser');
 var path = require('path');
 //need these commands to get parameters for the post
@@ -15,7 +14,7 @@ app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
 var Connection = require('tedious').Connection;
 var Request = require('tedious').Request;
 var TYPES = require('tedious').TYPES;
-var DBRequest = require('./DBRequest.js');
+var DBRequest = require('./public/js/DBRequest.js');
 var DB = new DBRequest();
 var async = require('async');
 //------------------------------------
