@@ -9,7 +9,7 @@ var database = require('./public/js/database');
 var db = new database.Database();
 var bodyParser = require('body-parser');
 var path = require('path');
-//need these commands to get parameters for the post 
+//need these commands to get parameters for the post
 app.use(bodyParser.json()); // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
 
@@ -42,7 +42,7 @@ var config = {
 
 var connection = new Connection(config);
 connection.on('connect', function (err) {
-    // If no error, then good to proceed.  
+    // If no error, then good to proceed.
     console.log("Connected");
 });
 
