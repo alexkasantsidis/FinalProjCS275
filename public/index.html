@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.9.0/fullcalendar.min.js"></script>
+    <link rel="stylesheet" href="http://code.jquery.com/mobile/1.3.1/jquery.mobile-1.3.1.min.css" />
+    <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
+    <script src="http://code.jquery.com/mobile/1.3.1/jquery.mobile-1.3.1.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <!--Custom Font-->
+    <link href="https://fonts.googleapis.com/css?family=Armata" rel="stylesheet">
+
+    <!-- Main CSS file -->
+    <link rel="stylesheet" href="public/css/main.css">
+    <!--test test test-->
+    <!-- Bootstrap CSS file (Used for the bootstrap grids)-->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+    <script src="js/moment.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.9.0/fullcalendar.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.9.0/fullcalendar.min.css" />
+    <link rel="stylesheet" media="print" href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.9.0/fullcalendar.print.css" />
+
+    <!-- -------------------------------------------------------------------------------------------- -->
+    <style>
+
+        #calendar .fc-content {
+            text-shadow: 0 0 0;
+        }
+
+        #dlgAddUpdate .modal-dialog {
+            width: 640px;
+            max-width: 800px;
+        }
+
+        #dlgAddUpdate .modal-body {
+            height: 380px;
+            max-height: 460px;
+            margin: 0;
+            padding: 14px;
+        }
+
+        #dlgAddUpdate label {
+            margin-top: 0.3em;
+            text-align: center;
+        }
+
+        /*#divDays label {
+            padding: 0px;
+            color: black;
+        }*/
+
+        /*#divDays label.active {
+                color: white;
+            }
+
+        #divDays span.ui-btn-inner {
+            padding-left: 37px;
+        }*/
+    </style>
+    <script>
+        var tmp = null;
+        var CalendarList = {};
+        var curEvent = null;
+        var id = null;
+        //====================================================================================
+
+        function requestCalEvents(userID) {
+
+            var params = {
+                userID: userID
+            }
+            var url = './calendar';
+            $.ajax({
+                type: "get",
+                url: url,
+                dataType: "text",
+                data: params,
+                success: function (msg) {
+                    if (msg == '[]') alert('No Events for this user');
+
+                    else {
+                        var json = JSON.parse(msg);
+                        createCalendar(json);
+                    }
+                },
+                error: function (jgXHR, textStatus, errorThrown) {
+                    alert("Error: " + textStatus + " " + errorThrown);
+                }
+            });
+        }
+
+        //====================================================================================
+
+        function insertEvent(obj) {
+
+            var url = './insertEvent';
+            $.ajax({
+                type: "post",
+                url: url,
+                dataType: "text",
+                data: obj,
+                success: function (msg) {
+                    requestCalEvents(id);
+                },
+                error: function (jgXHR, textStatus, errorThrown) {
+                    alert("Error: " + textStatus + " " + errorThrown);
+                }
+            });
+        }
+
+        //====================================================================================
+
+        function updateEvent(obj) {
+            var url = './updateEvent';
+            $.ajax({
+                type: "post",
+                url: url,
+                dataType: "text",
+                data: obj,
+                success: function (msg) {
+                    requestCalEvents(id);
+                },
+                error: function (jgXHR, textStatus, errorThrown) {
+                    alert("Error: " + textStatus + " " + errorThrown);
+                }
+            });
+        }
+
+        //====================================================================================
+
+        function createCalendar(json) {
+            $('#calendar').fullCalendar({
+                header: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'month,agendaWeek,agendaDay,listWeek'
+                },
+                minTime: "07:00:00",
+                maxTime: "21:00:00",
+                contentHeight: 'auto',
+                dayClick: function (date, jsEvent, view) {
+                    var fdate = date.format('YYYY-MM-DD HH') + ':00';
+                    var start = date.format('HH') + ':00';
+                    var end = date.add(1, 'hour').format('HH') + ':00';
+                    var obj = { start: start, end: end };
+                    clearDlgData();
+                    putDlgData(obj);
+                    $("#dlgAddUpdate").modal({
+                        backdrop: "static",
+                        keyboard: true,
+                        focus: true,
+                        show: true
+                    });
+                },
+                eventClick: function (calEvent, jsEvent, view) {
+                    curEvent = CalendarList[calEvent.id];
+                    //alert(JSON.stringify(curEvent));
+                    putDlgData(curEvent);
+                    $("#dlgAddUpdate").modal({
+                        backdrop: "static",
+                        keyboard: true,
+                        focus: true,
+                        show: true
+                    });
+
+
+                },
+                editable: true,
+                eventLimit: true, // allow "more" link when too many events
+                navLinks: true,
+
+            });
+            $('#calendar').fullCalendar('removeEvents');
+            //------------------------------------------
+            for (var i = 0; i < json.length; i++) {
+                var row = json[i];
+                //alert(JSON.stringify(row));
+                var dowarr = [];
+                var dow = JSON.parse(row.dow);
+                for (var j = 0; j < dow.length; j++) {
+                    dowarr.push(dow[j].DayOfWeek);
+                }
+                var events = {
+                    id: row.ClassGUID,
+                    dow: dowarr,
+                    ranges: JSON.parse(row.ranges),
+                    title: row.ClassName,
+                    start: row.StartTime,
+                    end: row.EndTime
+                }
+                CalendarList[row.ClassGUID] = events;
+                $('#calendar').fullCalendar('renderEvent', events, true);
+            }
+        }
+
+        //====================================================================================
+
+
+        function clearDlgData() {
+            $("#txtFromDate").val('');
+            $("#txtToDate").val('');
+            $("#txtTitle").val('');
+            $("#txtStartTime").val('');
+            $("#txtEndTime").val('');
+            var inputs = $("#divDays").find("input");
+            var labels = $("#divDays").find("label");
+            for (var i = 0; i < inputs.length; i++) {
+                $(inputs[i]).prop("checked", false).checkboxradio('refresh');;
+                $(labels[i]).removeClass("active");
+            }
+
+        }
+
+        //====================================================================================
+
+        function putDlgData(obj) {
+            try {
+                $("#txtTitle").val(obj.title);
+                $("#txtStartTime").val(obj.start);
+                $("#txtEndTime").val(obj.end);
+                $("#txtFromDate").val(obj.ranges[0].start);
+                $("#txtToDate").val(obj.ranges[0].end);
+
+                var inputs = $("#divDays").find("input");
+                var labels = $("#divDays").find("label");
+                for (var i = 0; i < inputs.length; i++) {
+                    $(inputs[i]).prop("checked", false).checkboxradio('refresh');;
+                    $(labels[i]).removeClass("active");
+                }
+
+
+                for (var i = 0; i < obj.dow.length; i++) {
+                    var idx = obj.dow[i];
+                    $(inputs[idx - 1]).prop("checked", true).checkboxradio('refresh');;
+                    $(labels[idx - 1]).addClass("active");
+                }
+            }
+            catch (e) {
+                $("#txtStartTime").val(obj.start);
+                $("#txtEndTime").val(obj.end);
+            }
+
+        }
+
+        //====================================================================================
+
+        function getDlgData() {
+            var resp = {};
+            resp.StartDate = $("#txtFromDate").val();
+            resp.EndDate = $("#txtToDate").val();
+            resp.title = $("#txtTitle").val();
+            resp.StartTime = $("#txtStartTime").val();
+            resp.EndTime = $("#txtEndTime").val();
+            var dow = 0;
+            var inputs = $("#divDays").find("input");
+            for (var i = 0; i < inputs.length; i++) {
+                if ($(inputs[i]).is(":checked") == true){
+                    dow += Math.pow(2, i);
+                    }
+            }
+            resp.freqID = dow;
+            return resp;
+        }
+
+        //====================================================================================
+
+        function requestVerification() {
+            var username = $('#username').val();
+            var password = $('#password').val();
+            var params = {
+                userName: username,
+                password: password
+            }
+            var url = './verify';
+            $.ajax({
+                type: "post",
+                url: url,
+                dataType: "text",
+                data: params,
+                success: function (msg) {
+                    //alert(msg);
+                    if (msg == '[]') alert('Invalid username or password');
+
+                    else {
+                        var json = JSON.parse(msg)
+                        json = json[0];
+                        //alert('Hello ' + json.FirstName);
+                        $('#hUser').html(json.FirstName.charAt(0).toUpperCase() + json.FirstName.slice(1) + ' ' + json.Lastname.charAt(0).toUpperCase() + json.Lastname.slice(1));
+                        //save this for later
+                        var userID = json.UserGUID;
+                        id = userID;
+                        //TO:DO Add navigation
+                        goToMain(userID);
+                        //$('#loginModal').hide();
+
+                    }
+                },
+                error: function (jgXHR, textStatus, errorThrown) {
+                    //alert('error');
+                    alert("Error: " + textStatus + " " + errorThrown);
+                }
+            });
+        }
+
+        //modify verify
+        function verifyReg(username, firstname, lastname, password, cPassword, DOB) {
+            if (username == '' || firstname == '' || lastname == '' || password == '' || cPassword == '' || DOB == '') return false;
+            else {
+                if (password != cPassword) {
+                    //TO:DO change colors of input boxes if bad values
+                    alert('password dont match');
+                    document.getElementById('regPassword').style.borderColor = "red";
+                    return false;
+                }
+                else {
+                    document.getElementById('regConfirmPassword').style.borderColor = "green";
+                    return true;
+                }
+            }
+        }
+
+        //===================================================================================
+
+        function requestRegistration() {
+            var username = $('#regusername').val();
+            var firstname = $('#regFirstName').val();
+            var lastname = $('#regLastName').val();
+            var password = $('#regPassword').val();
+            var cPassword = $('#regConfirmPassword').val();
+            var DOB = $('#regDOB').val();
+            var flag = verifyReg(username, firstname, lastname, password, cPassword, DOB);
+            var params = {
+                username: username,
+                firstname: firstname,
+                lastname: lastname,
+                password: password,
+                DOB: DOB
+            }
+            if (flag) {
+                //alert('true');
+                var url = './register';
+                $.ajax({
+                    type: "post",
+                    url: url,
+                    dataType: "text",
+                    data: params,
+                    success: function (msg) {
+                        alert(msg + 'Login with your Username and Password');
+                        $('#registrationModal').hide();
+                    },
+                    error: function (jgXHR, textStatus, errorThrown) {
+                        //alert('error');
+                        alert("Error: " + textStatus + " " + errorThrown);
+                    }
+                });
+            }
+            else {
+                alert('Fix Values');
+            }
+        }
+        //====================================================================================
+        function goToMain(userID) {
+            $('#home').hide();
+            $('#calDash').show();
+            requestCalEvents(userID);
+        }
+        function logout() {
+            id = null;
+            $('#calDash').hide();
+            $('#calendar').fullCalendar('removeEvents');
+            $('#hUser').html('');
+            $('#home').show();
+        }
+
+        function clearLogin() {
+            $('#username').val('');
+            $('#password').val('');
+            $('#regusername').val('');
+            $('#regFirstName').val('');
+            $('#regLastName').val('');
+            $('#regPassword').val('');
+            $('#regConfirmPassword').val('');
+            $('#regDOB').val('');
+            $('#regemail').val('');
+        }
+
+        $(function () {
+            window.onerror = function (msg, url, line, col, error) {
+                var extra = !col ? '' : '\ncolumn: ' + col;
+                extra += !error ? '' : '\nerror: ' + error;
+                alert("Error: " + msg + "\nurl: " + url + "\nline: " + line + extra);
+                return false;
+            }
+            $('#loginp').click(function () {
+                requestVerification();
+                $('#loginModal').modal("hide");
+                clearLogin();
+            })
+            $('#regDOB').datepicker();
+
+            $('#registerp').click(function () {
+                requestRegistration();
+                $('#registrationModal').modal("hide");
+                clearLogin();
+            })
+
+            $('#login').click(function () {
+                $('#loginModal').modal({
+                    backdrop: "static",
+                    keyboard: true,
+                    focus: true,
+                    show: true
+                });
+            })
+
+            $('#registerBtn').click(function () {
+                $('#registrationModal').modal({
+                    backdrop: "static",
+                    keyboard: true,
+                    focus: true,
+                    show: true
+                });
+            })
+
+            $('#Logout').click(function () {
+                logout();
+            })
+
+
+            $("#btnOK").click(function () {
+                var obj = getDlgData();
+                obj.UserID = id;
+
+                if (curEvent == null) {
+                    insertEvent(obj);
+                }
+                else {
+                    obj.classID = curEvent.id;
+                    updateEvent(obj);
+                }
+                curEvent = null;
+                $("#dlgAddUpdate").modal("hide");
+                // alert(JSON.stringify(obj));
+            });
+            $('#btnCancel').click(function () {
+                curEvent = null;
+                $("#dlgAddUpdate").modal("hide");
+            })
+        });
+
+    </script>
+</head>
+<body>
+    <div id="home" data-theme="d">
+
+
+        <div data-role="header" class="col-lg-12">
+
+            <a id="login" class="ui-btn-right" data-theme="b">Login</a>
+            <h1>Login or Register</h1>
+            <a id="registerBtn" class="ui-btn-left" data-theme="b">Register</a>
+        </div>
+
+        <center>
+            <br><br>
+            <div class="Blank">
+                <img src="./images/Notebook.png" height="235">
+            </div>
+            <br>
+            <p>Welcome to PlanIT. The Homework Planning master.  Where you can create Homework planners which will bend to your schedule in collage</p>
+        </center>
+
+    </div>
+    <div id="calDash" style="display:none">
+        <div data-role="header">
+            <h1 id="hUser"></h1>
+            <a id="Logout" data-icon="gear" class="ui-btn-right" data-theme="b">Logout</a>
+        </div>
+        <div id="calendar" class="fc fc-unthemed fc-ltr"></div>
+    </div>
+
+    <!--  -->
+    <div class="modal fade" id="dlgAddUpdate" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog">
+            <section class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Add/Edit</h4>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row form-group">
+                        <label for="txtTitle" class="col-form-label col-sm-2">Title</label>
+                        <div class="col-sm-10">
+                            <input id="txtTitle" name="txtTitle" type="text" class="form-control" placeholder="" spellcheck="false">
+                        </div>
+
+                    </div>
+                    <div class="form-row form-group">
+                        <div class="btn-group btn-group-toggle col-sm-10" data-toggle="buttons" id="divDays">
+                            <label class="btn btn-secondary">
+                                <input type="checkbox" autocomplete="off" id="dayMon" /> Mon
+                            </label>
+                            <label class="btn btn-secondary" id="lblTue">
+                                <input type="checkbox" autocomplete="off" id="dayTue" /> Tue
+                            </label>
+                            <label class="btn btn-secondary">
+                                <input type="checkbox" autocomplete="off" id="dayWed" /> Wed
+                            </label>
+                            <label class="btn btn-secondary">
+                                <input type="checkbox" autocomplete="off" id="dayThu" /> Thu
+                            </label>
+                            <label class="btn btn-secondary">
+                                <input type="checkbox" autocomplete="off" id="dayFri" /> Fri
+                            </label>
+                            <label class="btn btn-secondary">
+                                <input type="checkbox" autocomplete="off" id="daySat" /> Sat
+                            </label>
+                            <label class="btn btn-secondary">
+                                <input type="checkbox" autocomplete="off" id="daySun" /> Sun
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-row form-group">
+                        <label for="txtStartTime" class="col-form-label col-sm-2">Start Time</label>
+                        <div class="col-sm-4">
+                            <input id="txtStartTime" name="txtStartTime" type="time" class="form-control" min="06:00" max="23:59" step="60" required>
+                        </div>
+                        <label for="txtEndTime" class="col-form-label col-sm-2">End Time</label>
+                        <div class="col-sm-4">
+                            <input id="txtEndTime" name="txtEndTime" type="time" class="form-control" placeholder="" spellcheck="false">
+                        </div>
+                    </div>
+                    <div class="form-row form-group">
+                        <label for="txtFromDate" class="col-form-label col-sm-2">From Date</label>
+                        <div class="col-sm-4">
+                            <input id="txtFromDate" name="txtFromDate" type="date" class="form-control" placeholder="" spellcheck="false">
+                        </div>
+                        <label for="txtToDate" class="col-form-label col-sm-2">To Date</label>
+                        <div class="col-sm-4">
+                            <input id="txtToDate" name="txtToDate" type="date" class="form-control" placeholder="" spellcheck="false">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" id="btnOK">OK</button>
+                    <button class="btn btn-default" id="btnCancel" data-dismiss="modal"> CANCEL</button>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <div class="modal fade" id="registrationModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog">
+            <section class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Register</h4>
+                </div>
+                <div class="modal-body">
+
+                    <div class="form-row form-group">
+                        <label for="regusername" class="col-form-label col-sm-2">UserName</label>
+                        <div class="col-sm-10">
+                            <input id="regusername" name="username" type="text" class="form-control" placeholder="" spellcheck="false" />
+                        </div>
+                    </div>
+                    <div class="form-row form-group">
+                        <label for="regFirstName" class="col-form-label col-sm-2">FirstName</label>
+                        <div class="col-sm-10">
+                            <input id="regFirstName" name="firstname" type="text" class="form-control" placeholder="" spellcheck="false" />
+                        </div>
+                    </div>
+                    <div class="form-row form-group">
+                        <label for="regLastName" class="col-form-label col-sm-2">Lastname</label>
+                        <div class="col-sm-10">
+                            <input id="regLastName" name="regLastName" type="text" class="form-control" placeholder="" spellcheck="false" />
+                        </div>
+                    </div>
+                    <div class="form-row form-group">
+                        <label for="regPassword" class="col-form-label col-sm-2">Password</label>
+                        <div class="col-sm-10">
+                            <input id="regPassword" name="regLastName" type="password" class="form-control" placeholder="" spellcheck="false" />
+                        </div>
+                    </div>
+                    <div class="form-row form-group">
+                        <label for="regConfirmPassword" class="col-form-label col-sm-2">Confirm Password</label>
+                        <div class="col-sm-10">
+                            <input id="regConfirmPassword" name="regConfirmPassword" type="password" class="form-control" placeholder="" spellcheck="false" />
+                        </div>
+                    </div>
+                    <div class="form-row form-group">
+                        <label for="regDOB" class="col-form-label col-sm-2">Birth date</label>
+                        <div class="col-sm-10">
+                            <input id="regDOB" name="regDOB" type="date" class="form-control" placeholder="" spellcheck="false" />
+                        </div>
+                    </div>
+                    <div class="form-row form-group">
+                        <label for="regemail" class="col-form-label col-sm-2">Email</label>
+                        <div class="col-sm-10">
+                            <input id="regemail" name="regDOB" type="text" class="form-control" placeholder="" spellcheck="false" />
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" id="registerp">OK</button>
+                    <button class="btn btn-default" id="btnCancelRegister" onclick="clearLogin()" data-dismiss="modal"> CANCEL</button>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <div class="modal fade" id="loginModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog">
+            <section class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Login</h4>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row form-group">
+                        <label for="username" class="col-form-label col-sm-2">UserName</label>
+                        <div class="col-sm-10">
+                            <input id="username" name="username" type="text" class="form-control" placeholder="" spellcheck="false" required />
+                        </div>
+
+                    </div>
+
+                    <div class="form-row form-group">
+                        <label for="password" class="col-form-label col-sm-2">Password</label>
+                        <div class="col-sm-10">
+                            <input id="password" name="password" type="password" class="form-control" required />
+                        </div>
+
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" id="loginp">OK</button>
+                    <button class="btn btn-default" id="btnCancelLogin" onclick="clearLogin()" data-dismiss="modal"> CANCEL</button>
+                </div>
+            </section>
+        </div>
+    </div>
+</body>
+</html>
